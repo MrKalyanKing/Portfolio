@@ -1,46 +1,39 @@
 import axios from "axios";
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "./Contextprovider";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
+import { Sparkles, UploadCloud, Loader2 } from "lucide-react";
+import { TechStackSkeleton } from "./PageSkeleton";
+import { getErrorMessage, getResponseMessage } from "../utils/errorMessage";
 
 const TechStack = () => {
-  const { url } = useContext(AppContext); // Ensure context is correctly used
+  const { url } = useContext(AppContext) || { url: "http://localhost:3000/api" };
   const [techImage, setTechImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setTechImage(URL.createObjectURL(file)); // For preview only
+      setTechImage(URL.createObjectURL(file));
     }
   };
 
-  const handleErr = () => {
-    toast.error("Project is not saved!", {
-      position: "bottom-right",
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
+  const handleErr = (msg = "The tech stack image could not be saved.") => {
+    toast.error(msg);
+    setIsSubmitting(false);
   };
 
   const handleSuccess = () => {
-    toast.success("Project added successfully!", {
-      position: "bottom-right",
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
+    toast.success("Tech stack image added successfully!");
+    setIsSubmitting(false);
   };
 
   const handleSubmit = async (e) => {
@@ -51,12 +44,9 @@ const TechStack = () => {
       return;
     }
 
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("image", selectedFile);
-
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}: ${value instanceof File ? value.name : value}`);
-    }
 
     try {
       const response = await axios.post(`${url}/techstack`, formData, {
@@ -68,60 +58,81 @@ const TechStack = () => {
       if (response.data.success) {
         handleSuccess();
       } else {
-        handleErr();
-        console.log("Backend Error Message:", response.data.message);
+        handleErr(getResponseMessage(response.data, "The tech stack image could not be saved."));
       }
     } catch (err) {
-      handleErr();
-      if (err.response) {
-        console.log("Backend Error Details:", err.response.data);
-      }
+      console.error(err);
+      handleErr(getErrorMessage(err, "The tech stack image could not be saved."));
     }
   };
 
+  if (loading) {
+    return <TechStackSkeleton />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 flex justify-center items-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-2xl font-semibold text-center text-blue-600 mb-6">
-            Tech Stack
-          </h2>
+    <div className="space-y-10 max-w-2xl mx-auto">
 
-          <div className="flex justify-center mb-4">
-            <img
-              src={techImage || "https://via.placeholder.com/150"}
-              alt="Tech Stack"
-              className="w-40 h-40 object-cover rounded-lg shadow-md"
-            />
-          </div>
+      <div>
+        <h1 className="font-headline font-bold text-3xl md:text-4xl text-on-surface text-center">
+          Tech Stack Assets
+        </h1>
+        <p className="font-body-md text-base text-on-surface-variant mt-1 text-center">
+          Upload logo assets and technologies to showcase on your portfolio.
+        </p>
+      </div>
 
-          <div className="mb-6">
+      <div className="glass-card ultra-rounded p-8 inner-glow">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-36 h-36 rounded-3xl overflow-hidden border-2 border-white/80 bg-white/50 shadow-lg flex items-center justify-center mb-6">
+              {techImage ? (
+                <img
+                  src={techImage}
+                  alt="Tech Stack Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Sparkles className="w-12 h-12 text-primary" />
+              )}
+            </div>
+
             <label
               htmlFor="tech-image"
-              className="block text-gray-700 text-lg font-medium text-center"
+              className="w-full border-2 border-dashed border-outline-variant/60 bg-white/30 hover:bg-white/50 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group"
             >
-              Upload Tech Image
+              <UploadCloud className="w-8 h-8 text-outline group-hover:text-primary transition-colors mb-2" />
+              <span className="text-sm font-label-sm font-semibold text-on-surface">
+                Click to select tech icon / image
+              </span>
+              <span className="text-xs text-outline mt-1">PNG, SVG or JPG format</span>
+              <input
+                type="file"
+                id="tech-image"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
             </label>
-            <input
-              type="file"
-              id="tech-image"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="w-full mt-2 p-2 border-2 border-gray-300 rounded-lg"
-            />
           </div>
 
-          <div className="text-center">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Submit
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full liquid-glass-btn-primary text-white font-headline font-bold py-4 rounded-full shadow-lg hover:scale-[1.01] transition-all text-base flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
+                <span>Uploading Asset...</span>
+              </>
+            ) : (
+              <span>Submit Tech Stack Image</span>
+            )}
+          </button>
+
         </form>
       </div>
-      <ToastContainer />
     </div>
   );
 };

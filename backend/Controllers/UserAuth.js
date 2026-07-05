@@ -2,30 +2,39 @@ import { UserModel } from "../models/Usermodel.js";
 import validator from "validator";
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import describeError from '../utils/httpError.js'
 
 
 
 
 //login
 const login= async (req,res)=>{
+  try {
     const {email,password}=req.body
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are both required.' })
+    }
     const user = await UserModel.findOne({email})
 
     if(!user){
-      return  res.json({success:false,message:'User Dosent exixst'})
+      return  res.json({success:false,message:`No admin account exists for "${email}".`})
     }
 
     const isMatch= await bcrypt.compare(password,user.password)
     if(!isMatch){
-        return res.json({success:false,message:"Invalid Credential"})
+        return res.json({success:false,message:"Incorrect password for this account."})
     }
     const token = CreateToken(user._id);
     if (!token) {
         return res.status(500).json({ success: false, message: 'Token generation failed.' });
     }
-    //console.log(user._id);
-    
+
     res.json({ success: true, token });
+  } catch (err) {
+    console.error("login failed:", err);
+    const { status, message } = describeError(err, "log in");
+    res.status(status).json({ success: false, message });
+  }
 }
 
 
@@ -61,7 +70,6 @@ const register = async (req, res) => {
     // Save the user to the database
     try {
         const user = await newUser.save();
-        console.log(user); // For debugging purposes
         return res.json({ success: true, message: 'User registered successfully', user });
     } catch (error) {
         console.error("Error registering user:", error);

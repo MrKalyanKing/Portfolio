@@ -1,6 +1,8 @@
 import contactModel from "../models/Contact.js";
 import validator from 'validator'
 import mongoose from "mongoose";
+import { getCached, refreshCache } from "../utils/cache.js";
+import describeError from "../utils/httpError.js";
 const addcontact=async(req,res)=>{
     try {
   const{name,description,email}=req.body;
@@ -16,10 +18,13 @@ const addcontact=async(req,res)=>{
   })
    
   const savedcon= await contact.save();
+  await refreshCache("contact");
   res.status(201).json({succes:true,contact:"Contact is received",savedcon})
 
 }catch(err){
-    res.status(500).json({succes:false,message:"Contact is not created",err})
+    console.error("addcontact failed:", err);
+    const { status, message } = describeError(err, "send the message");
+    res.status(status).json({ success: false, message });
 }
 
 }
@@ -27,8 +32,8 @@ const addcontact=async(req,res)=>{
 
 const contactfetech = async (req, res) => {
   try {
-    // Fetching contacts from the database
-    const contacts = await contactModel.find({});
+    // Served from the in-memory cache instead of querying the database
+    const contacts = await getCached("contact");
 
     // Send the fetched contacts in the response
     res.status(200).json({
@@ -37,7 +42,9 @@ const contactfetech = async (req, res) => {
       contacts: contacts, // Include the contacts in the response
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: "Failed to fetch contacts" });
+    console.error("contactfetech failed:", err);
+    const { status, message } = describeError(err, "load the contacts");
+    res.status(status).json({ success: false, message });
   }
 };
 
@@ -57,11 +64,12 @@ const contactfetech = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Report not found' });
     }
 
-    //console.log('Contact deleted', id);
+    await refreshCache("contact");
     return res.json({ success: true, message: 'Contact Removed' });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ success: false, message: 'Error removing the Contact' });
+    const { status, message } = describeError(error, "delete the contact");
+    return res.status(status).json({ success: false, message });
   }
  }
 export  {addcontact,contactfetech,deletecontact}

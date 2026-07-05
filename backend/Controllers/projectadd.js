@@ -1,15 +1,17 @@
-
 import pkg from 'body-parser';
 const { json } = pkg;
 import projectmodel from "../models/ProjectModel.js";
+import imagekit from "../utils/imagekit.js";
+import fs from "fs";
+import { getCached, refreshCache } from "../utils/cache.js";
+import describeError from "../utils/httpError.js";
 
 // add project
 const addproject = async (req, res) => {
   try {
     // Destructure the data from the request body
-    const { title, description, githublink, previewlink } = req.body;
-    const image_file = req.file ? `${req.file.filename}` : null; // Get the uploaded file name
-    console.log(req.body); // To check if everything is being passed correctly
+    const { title, description, githublink, previewlink, kind } = req.body;
+    let image_file = req.file ? `${req.file.filename}` : null; // Get the uploaded file name
 
     // Collect tags from request body
     const tags = [];
@@ -22,9 +24,34 @@ const addproject = async (req, res) => {
       }
     }
 
-    // Validation check for required fields
-    if (!title || !description  || !githublink || !previewlink || !image_file) {
-      return res.status(400).json({ error: "All fields are required!" });
+    // Validation check for required fields — name exactly what's missing
+    const missing = Object.entries({ title, description, githublink, previewlink, image: image_file })
+      .filter(([, v]) => !v)
+      .map(([k]) => k);
+    if (missing.length > 0) {
+      return res.status(400).json({ success: false, message: `Missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.` });
+    }
+
+    // Upload to ImageKit if configured
+    if (imagekit && req.file) {
+      try {
+        const fileContent = fs.readFileSync(req.file.path);
+        const uploadResponse = await imagekit.upload({
+          file: fileContent,
+          fileName: req.file.filename,
+          folder: "/portfolio_projects",
+        });
+        image_file = uploadResponse.url; // Save the ImageKit URL instead
+        // Optional: Clean up local file
+        fs.unlinkSync(req.file.path);
+      } catch (uploadErr) {
+        console.error("ImageKit Upload Error:", uploadErr);
+        // Fallback to local filename if upload fails, or return error. We'll fallback.
+      }
+    } else if (!imagekit && req.file) {
+      // If imagekit is not configured, we'll store a complete URL using the local server (assuming it's localhost:3000 for local dev)
+      // Actually, since the frontend expects `p.image` to be a full URL, and we just save filename, let's keep it as filename
+      // But if imagekit is enabled, image_file is now a URL.
     }
 
     // Create the project object and save it
@@ -32,23 +59,22 @@ const addproject = async (req, res) => {
       title,
       description,
       tags, // Attach tags
+      kind: kind || "FINTECH • BACKEND",
       image: image_file,
       githublink,
       previewlink,
     });
-
-
     
     const savedprj = await project.save(); // Save the project to DB
-    console.log(savedprj); // Log the saved project
+    await refreshCache("project"); // Keep the in-memory cache in sync
 
     // Send the success response
     res.status(201).json({ success: true, project: savedprj });
 
   } catch (err) {
-    // Handle any errors that occur during the process
-    console.error(err);
-    res.status(500).json({ success: false, message: "Project not updated", error: err });
+    console.error("addproject failed:", err);
+    const { status, message } = describeError(err, "save the project");
+    res.status(status).json({ success: false, message });
   }
 };
   
@@ -57,22 +83,28 @@ const addproject = async (req, res) => {
 
 const projectfetch = async (req, res) => {
   try {
-    const projects = await projectmodel.find({});
+    const projects = await getCached("project"); // Served from RAM, not MongoDB
     res.status(201).json({ success: true, message: "projects fetched", project: projects }); // Corrected to "project"
   } catch (err) {
-    res.status(400).json({ success: false, message: "failed to get projects" });
+    console.error("projectfetch failed:", err);
+    const { status, message } = describeError(err, "load the projects");
+    res.status(status).json({ success: false, message });
   }
 };
 
 const deleteproject=async (req,res)=>{
    let {id} =req.params
-   console.log("Received Id at backend",id)
    try{
      const deletes = await projectmodel.findByIdAndDelete(id)
+     if (!deletes) {
+       return res.status(404).json({ success: false, message: `No project found with id ${id} — it may already have been deleted.` })
+     }
+     await refreshCache("project")
      res.status(201).json({success:true,message:"Project was deleted",deletes:deletes})
    } catch(er){
-    res.status(500).json({success:true,message:"Project was not deleted"})
-
+    console.error("deleteproject failed:", er);
+    const { status, message } = describeError(er, "delete the project");
+    res.status(status).json({ success: false, message });
    }
 }
 
