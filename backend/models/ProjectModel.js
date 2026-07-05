@@ -15,10 +15,10 @@ const projectSchema= new Schema({
             color: { type: String }
         }
     ],
-    kind: {
-        type: String,
-        default: "Project"
-    },
+    // techstack:{
+    //     type:String,
+    //     required:true,
+    // },
     image:{
         type:String,
         required:true,

@@ -1,145 +1,130 @@
-import React, { useState, useEffect, useContext } from "react";
-import { toast } from "react-toastify";
+import React, { useState, useEffect, useContext } from 'react';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
-import { AppContext } from "./Contextprovider";
-import { Trash2, Mail, User, MessageSquare } from "lucide-react";
-import { ContactsSkeleton } from "./PageSkeleton";
-import { getErrorMessage, getResponseMessage } from "../utils/errorMessage";
+import { AppContext } from './Contextprovider';
 
 const Editcon = () => {
-  const { url } = useContext(AppContext) || { url: "http://localhost:3000/api" };
+  const { url } = useContext(AppContext);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const handleErr = (msg = "Something went wrong — please try again.") => {
-    toast.error(msg);
-  };
-
-  const handleSuccess = () => {
-    toast.success("Contact entry deleted");
-  };
+  
+  const handleErr=()=>{
+             toast.error("Network error please try again", {
+                  position: "bottom-right",
+                  autoClose: 5000, // Close after 5 seconds
+                  hideProgressBar: false,
+                  closeOnClick: true,
+                  pauseOnHover: true,
+                  draggable: true,
+                  progress: undefined,
+                  theme: "light",
+                });    
+          }
+          const handlesuccess=()=>{
+                     toast.success("Contact is deleted", {
+                          position: "bottom-right",
+                          autoClose: 5000, // Close after 5 seconds
+                          hideProgressBar: false,
+                          closeOnClick: true,
+                          pauseOnHover: true,
+                          draggable: true,
+                          progress: undefined,
+                          theme: "light",
+                        });    
+                  }
 
   const fetchContacts = async () => {
     try {
       const response = await axios.get(`${url}/show/contact`);
+
+  
+      // Check if the response is successful and contains contacts data
       if (response.data.success && Array.isArray(response.data.contacts)) {
         setContacts(response.data.contacts);
+        
       } else {
-        handleErr(getResponseMessage(response.data, "The contact messages could not be loaded."));
+        toast.error('No contacts found or error fetching contacts.');
       }
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching contacts:", error);
-      handleErr(getErrorMessage(error, "The contact messages could not be loaded."));
+      console.error('Error fetching contacts:', error);
+      toast.error('Failed to fetch contacts. Please try again later.');
       setLoading(false);
     }
   };
+   //deleting 
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this contact message?");
+   const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this record?");
     if (!confirmDelete) return;
+    //console.log("Attempting to delete ID:", id);
 
     try {
       const response = await fetch(`${url}/delete/${id}`, {
-        method: "DELETE",
+        method: 'DELETE',
       });
+  
       const result = await response.json();
-
+  
       if (result.success) {
-        handleSuccess();
+        handlesuccess()
         setContacts((prevReports) => prevReports.filter((report) => report._id !== id));
       } else {
-        handleErr(getResponseMessage(result, "The contact could not be deleted."));
+        alert(`Error: ${result.message}`);
+        handleErr()
       }
     } catch (error) {
       console.error(error);
-      handleErr(getErrorMessage(error, "The contact could not be deleted."));
+      //alert("Error deleting the record.");
+      handleErr()
     }
   };
-
   useEffect(() => {
     fetchContacts();
-  }, []);
-
-  if (loading) {
-    return <ContactsSkeleton />;
-  }
+  }, []); // Empty dependency array to run only once on mount
 
   return (
-    <div className="space-y-10">
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-headline font-bold text-3xl md:text-4xl text-on-surface">
-            Contact Messages
-          </h1>
-          <p className="font-body-md text-base text-on-surface-variant mt-1">
-            View inquiry submissions sent from your portfolio website.
-          </p>
-        </div>
-        <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full font-label-xs text-xs font-bold uppercase">
-          {contacts.length} MESSAGES
-        </span>
-      </div>
-
-      <div className="glass-card ultra-rounded overflow-hidden inner-glow p-6 sm:p-8">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center">
+      <h2 className="text-3xl font-bold text-blue-600 mt-8">
+        Contact Page {contacts.length}
+      </h2>
+      <div className="bg-white shadow-lg rounded-lg mt-6 w-full max-w-4xl p-6">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
+          <p className="text-center text-gray-500">Loading contacts...</p>
         ) : contacts.length === 0 ? (
-          <div className="text-center py-16">
-            <MessageSquare className="w-12 h-12 text-outline/40 mx-auto mb-3" />
-            <p className="text-on-surface-variant font-medium">No contact messages available.</p>
-          </div>
+          <p className="text-center text-gray-500">No contacts available.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/40 text-on-surface-variant text-xs uppercase tracking-wider font-label-xs font-bold">
-                  <th className="py-4 px-4">Name</th>
-                  <th className="py-4 px-4">Email</th>
-                  <th className="py-4 px-4">Message / Description</th>
-                  <th className="py-4 px-4 text-center">Actions</th>
+          <table className="table-auto w-full border-collapse border border-gray-200">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
+                <th className="border border-gray-300 px-4 py-2 text-left">Email</th>
+                <th className="border border-gray-300 px-4 py-2 text-left">Description</th>
+                <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.map((contact) => (
+                <tr key={contact._id} className="hover:bg-gray-100">
+                  <td className="border border-gray-300 px-4 py-2">{contact.name}</td>
+                  <td className="border border-gray-300 px-4 py-2">{contact.email}</td>
+                  <td className="border border-gray-300 px-4 py-2">{contact.description}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-center">
+                    <button
+                      onClick={() => handleDelete(contact._id)}
+                      className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-white/30 text-sm">
-                {contacts.map((contact) => (
-                  <tr key={contact._id} className="hover:bg-white/40 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-on-surface">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-primary" />
-                        <span>{contact.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-on-surface-variant">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-secondary" />
-                        <a href={`mailto:${contact.email}`} className="hover:underline">
-                          {contact.email}
-                        </a>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-on-surface-variant max-w-xs leading-relaxed">
-                      {contact.description}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <button
-                        onClick={() => handleDelete(contact._id)}
-                        className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-error-container/40 transition-colors"
-                        title="Delete Message"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-
+      <ToastContainer />
     </div>
   );
 };

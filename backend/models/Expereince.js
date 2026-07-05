@@ -14,19 +14,13 @@ const expereinceSchema =new Schema({
         type:String,
         required:true,
     },
-    location:{
-        type:String,
-    },
     description:{
-        type:[String],
+        type:String,
         required:true,
     },
     duration:{
         type:String,
         required:true
-    },
-    techStack:{
-        type:[String],
     }
 
 })
