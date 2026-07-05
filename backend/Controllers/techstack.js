@@ -1,4 +1,6 @@
 import techModel from "../models/TechStack.js";
+import { getCached, refreshCache } from "../utils/cache.js";
+import describeError from "../utils/httpError.js";
 
 // Assuming you are using multer for file uploads
 const techstack = async (req, res) => {
@@ -14,20 +16,25 @@ const techstack = async (req, res) => {
         });
 
         const savedstack = await stack.save();
+        await refreshCache("tech");
         res.status(201).json({ success: true, techstack: "created stack", savedstack });
 
     } catch (err) {
-        res.status(500).json({ success: false, message: "Techstack is not created", err });
+        console.error("techstack failed:", err);
+        const { status, message } = describeError(err, "save the tech stack image");
+        res.status(status).json({ success: false, message });
     }
 };
   //feteching
 
   const techfetch=async (req,res) =>{
     try{
-    const tech= await techModel.find({})
+    const tech= await getCached("tech") // Served from RAM, not MongoDB
     res.status(201).json({success:true,message:"Tech stack feteched",tech:tech})
     }catch(err){
-        res.status(500).json({success:false,message:"Tech stack not feteched"})
+        console.error("techfetch failed:", err);
+        const { status, message } = describeError(err, "load the tech stack");
+        res.status(status).json({ success: false, message });
     }
 
   }

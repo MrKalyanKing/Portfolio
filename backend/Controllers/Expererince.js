@@ -1,24 +1,39 @@
 import ExpereinceModel from "../models/Expereince.js"
 import mongoose from "mongoose";
+import { getCached, refreshCache } from "../utils/cache.js";
+import describeError from "../utils/httpError.js";
 const addexpereince= async(req,res)=>{
   try{
-  const {role,image,company,description,duration}=req.body
+  let {role,company,description,duration,location,techStack}=req.body
   const image_file = req.file ? `${req.file.filename}` : null;
   console.log(req.body)
+  
+  // Parse arrays if they are sent as strings
+  if (typeof description === 'string') {
+    try { description = JSON.parse(description); } catch(e) {}
+  }
+  if (typeof techStack === 'string') {
+    try { techStack = JSON.parse(techStack); } catch(e) {}
+  }
 
   const work =new ExpereinceModel ({
     role:role,
     image:image_file,
     company:company,
+    location:location,
     description:description,
-    duration:duration
+    duration:duration,
+    techStack:techStack
   })
 
   const savedwork= await work.save();
+  await refreshCache("work");
 
   res.status(201).json({success:true,Expereince:"Experince is saved",savedwork})
 }catch(err){
-  res.status(500).json({success:false,message:'Expereince of work is not saved',err})
+  console.error("addexpereince failed:", err);
+  const { status, message } = describeError(err, "save the work experience");
+  res.status(status).json({ success: false, message });
 }
 }
 
@@ -26,10 +41,12 @@ const addexpereince= async(req,res)=>{
 
  const workfetch= async (req,res)=>{
   try{
-   const work = await ExpereinceModel.find({})
+   const work = await getCached("work") // Served from RAM, not MongoDB
    res.status(201).json({success:true,message:"Experince fetched",work:work})
   }catch(err){
-   res.status(500).json({success:false,message:"failed to fetch"})
+   console.error("workfetch failed:", err);
+   const { status, message } = describeError(err, "load the work experience");
+   res.status(status).json({ success: false, message });
   }
 
  }
@@ -50,11 +67,12 @@ const addexpereince= async(req,res)=>{
       return res.status(404).json({ success: false, message: 'Experience not found' });
     }
 
-  
+    await refreshCache("work");
     return res.json({ success: true, message: 'Experience Removed' });
   } catch (err) {
     console.error('Error deleting experience:', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    const { status, message } = describeError(err, "delete the work experience");
+    return res.status(status).json({ success: false, message });
   }
 };
 

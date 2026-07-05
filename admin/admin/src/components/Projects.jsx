@@ -1,417 +1,521 @@
 import React, { useContext, useEffect, useState } from "react";
 import upload from "../assets/upload.jpg";
 import { AppContext } from "./Contextprovider";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import axios from "axios";
+import {
+  Image as ImageIcon,
+  ExternalLink,
+  Github,
+  Trash2,
+  Plus,
+  X,
+  Filter,
+  ArrowUpDown,
+  Eye,
+  Loader2,
+} from "lucide-react";
+import { ProjectsSkeleton } from "./PageSkeleton";
+import { getErrorMessage, getResponseMessage } from "../utils/errorMessage";
+
+
 
 export function Projects() {
-  const url = useContext(AppContext);
+  const { url } = useContext(AppContext) || { url: "http://localhost:3000/api" };
   const [image, setImage] = useState(null);
   const [tags, setTags] = useState([]);
-  const [project, setProject] = useState([]);
-  const [loading, setLodaing] = useState(true);
+  const [projectList, setProjectList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState({
     title: "",
+    kind: "",
     description: "",
     githublink: "",
     previewlink: "",
   });
 
-  // Handle changes for form fields
-  
+
+  const [techName, setTechName] = useState("");
+  const [techColor, setTechColor] = useState("#8d2ebc");
+
   const handleChange = (e) => {
-    const { target } = e;
-    const { name, value } = target;
+    const { name, value } = e.target;
     setData({
       ...data,
       [name]: value,
     });
   };
 
-  const handleErr = () => {
-    toast.error("Project is not saved!", {
-      position: "bottom-right",
-      autoClose: 2000, // Close after 5 seconds
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
-  };
-  const handleErrdelete = () => {
-    toast.error("Project is not saved!", {
-      position: "bottom-right",
-      autoClose: 2000, // Close after 5 seconds
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
+  const handleErr = (msg = "Project is not saved!") => {
+    toast.error(msg);
   };
 
-  const handleSucess = () => {
-    toast.success("project added succcesfully!", {
-      position: "bottom-right",
-      autoClose: 2000, // Close after 5 seconds
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
-  };
-  const handleSucessdelete = () => {
-    toast.success("project added succcesfully!", {
-      position: "bottom-right",
-      autoClose: 2000, // Close after 5 seconds
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    });
+  const handleSuccess = (msg = "Project added successfully!") => {
+    toast.success(msg);
   };
 
-  // Handle adding a tech stack
   const handleTagAdd = () => {
-    const techName = document.getElementById("tech-name").value;
-    const color = document.getElementById("tech-color").value;
-
-    if (techName.trim() && color) {
+    if (techName.trim() && techColor) {
       setTags([
         ...tags,
         {
-          id: Date.now(), // Unique ID for the tag
-          name: techName,
-          color: color,
+          id: Date.now(),
+          name: techName.trim(),
+          color: techColor,
         },
       ]);
-      document.getElementById("tech-name").value = ""; // Clear input field after adding the tag
-      document.getElementById("tech-color").value = "#000000"; // Clear color picker
+      setTechName("");
     }
   };
 
-  // Handle tag removal
   const handleTagRemove = (id) => {
     setTags(tags.filter((tag) => tag.id !== id));
   };
 
-  // Handle form submission
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-
-  //   const projectData = {
-  //     ...data,
-  //     tags: tags,  // Include tags array in the data
-  //     image, // Include the selected image if needed
-  //   };
-
-  //   console.log(projectData);  // For debugging, send this to the backend here
-  // };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Create a new FormData object
-    const formData = new FormData();
+    if (!image) {
+      toast.error("Please upload a project thumbnail image!");
+      return;
+    }
 
-    // Append basic project fields
+    setIsSubmitting(true);
+
+    const formData = new FormData();
     formData.append("title", data.title);
+
+    formData.append("kind", data.kind);
     formData.append("description", data.description);
     formData.append("githublink", data.githublink);
     formData.append("previewlink", data.previewlink);
+    formData.append("tags", JSON.stringify(tags));
 
-    // Append tags (tech stack) as JSON string (to handle array of objects)
-    formData.append("tags", JSON.stringify(tags)); // Convert tags to JSON
-
-    // Append the image file (if available)
     if (image) {
       formData.append("image", image);
     }
-   
+
     try {
-      // Send the FormData to the backend via axios (POST request)
       const response = await axios.post(
-        `http://localhost:3000/api/project`,
+        "http://localhost:3000/api/project",
         formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data", // Important for sending files
-          },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
-      handleSucess();
       if (response.data.success) {
-        console.log("Project saved successfully!");
+        handleSuccess();
+        // Reset form
+        setData({ title: "", kind: "", description: "", githublink: "", previewlink: "" });
+        setTags([]);
+        setImage(null);
+        // Fetch fresh project list
+        projectFetch();
       } else {
-        console.log("Failed to save project.");
-        handleErr();
+        handleErr(getResponseMessage(response.data, "The project could not be saved."));
       }
     } catch (err) {
       console.error("Error submitting form:", err);
-      handleErr();
+      handleErr(getErrorMessage(err, "The project could not be saved."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // fetching the data
-
-  const projectfethc = async () => {
+  const projectFetch = async () => {
     try {
-      const response = await axios.get(
-        'http://localhost:3000/api/show/project'
-      );
-     
+      const response = await axios.get("http://localhost:3000/api/show/project");
       if (response.data.success && Array.isArray(response.data.project)) {
-        setProject(response.data.project);
-        
+        setProjectList(response.data.project);
       } else {
-        handleErr();
+        handleErr(getResponseMessage(response.data, "The project list could not be loaded."));
       }
     } catch (err) {
-      handleErr();
-      console.log("data was not fetched ");
-      setLodaing(false);
+      handleErr(getErrorMessage(err, "The project list could not be loaded."));
+    } finally {
+      setLoading(false);
     }
   };
-  // deleting the data
-   
-  const deleteproject=async (id)=>{
-    try{
-     const response = await fetch(`http://localhost:3000/api/delete/project/${id}`,
-     { "method": "DELETE" })
 
-     const result =await response.json()
-     if (result.success) {
-      handleSucessdelete()
-      setProject((prevReports) => prevReports.filter((report) => report._id !== id));
-    } else {
-      alert(`Error: ${result.message}`);
-      handleErrdelete()
-    }
-    }catch(err){
+  const deleteProject = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this project?");
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/delete/project/${id}`, { method: "DELETE" });
+      const result = await response.json();
+      if (result.success) {
+        handleSuccess("Project deleted successfully!");
+        setProjectList((prev) => prev.filter((p) => p._id !== id));
+      } else {
+        handleErr(getResponseMessage(result, "The project could not be deleted."));
+      }
+    } catch (err) {
       console.error(err);
+      handleErr(getErrorMessage(err, "The project could not be deleted."));
     }
-  }
+  };
+
   useEffect(() => {
-    projectfethc();
+    projectFetch();
   }, []);
-  
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-purple-600">Add Project</h1>
-        <p className="text-gray-600">ADMIN PANEL</p>
-      </div>
-      <div className="bg-white rounded-xl p-8 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Title
-            </label>
-            <input
-              type="text"
-              placeholder="Enter small title"
-              value={data.title}
-              onChange={handleChange}
-              name="title"
-              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Tags (Tech Stack)
-            </label>
-            <input
-              type="text"
-              id="tech-name"
-              placeholder="Enter tech stack name (e.g., React)"
-              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
-            />
-            <input
-              type="color"
-              id="tech-color"
-              className="w-full mt-2 p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
-            />
-            <button
-              type="button"
-              onClick={handleTagAdd}
-              className="mt-2 bg-purple-600 text-white px-4 py-2 rounded-lg"
-            >
-              Add Tech Stack
-            </button>
-            <div className="mt-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex items-center px-3 py-1 mr-2 mb-2 text-sm font-medium text-white rounded-full"
-                  style={{ backgroundColor: tag.color }}
-                >
-                  {tag.name}
-                  <button
-                    type="button"
-                    onClick={() => handleTagRemove(tag.id)}
-                    className="ml-2 text-white"
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              GitHub Link
-            </label>
-            <input
-              type="url"
-              placeholder="Enter Github link"
-              name="githublink"
-              value={data.githublink}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Project Live Preview Link
-            </label>
-            <input
-              type="url"
-              placeholder="Enter project URL"
-              name="previewlink"
-              value={data.previewlink}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div className="description">
-            <label>Description</label>
-            <br></br>
-            <textarea
-              name="description"
-              rows="9"
-              cols="50"
-              value={data.description}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">
-              Project Images (first image will be shown as thumbnail)
-              <img
-                src={image ? URL.createObjectURL(image) : upload}
-                alt="upload"
-                style={{ height: "90px", width: "140px" }}
-              />
-            </label>
-            <input
-              type="file"
-              id="project-images"
-              onChange={(e) => setImage(e.target.files[0])}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Save Project
-          </button>
-        </form>
-      </div>
-
-      {/* fetching the data */}
-
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center">
-        <h2 className="text-3xl font-bold text-blue-600 mt-8">
-          Project Page {project.length}
-        </h2>
-        <div className="bg-white shadow-lg rounded-lg mt-6 w-full max-w-4xl p-6">
-          {project.length === 0 ? (
-            <p className="text-center text-gray-500">No Project available.</p>
-          ) : (
-            <table className="table-auto w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border border-gray-300 px-4 py-2 text-left">
-                    TItle
-                  </th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">
-                    Image
-                  </th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">
-                    Description
-                  </th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">
-                    PreviewLink
-                  </th>
-                  <td className="border border-gray-300 px-4 py-2">Delete</td>
-                </tr>
-              </thead>
-              <tbody>
-                {project.map((Projects) => (
-                  <tr key={Projects._id} className="hover:bg-gray-100">
-                    <td className="border border-gray-300 px-4 py-2">
-                      {Projects.title}
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <img src={project.image} alt="image" style={{ maxWidth: '100%', height: 'auto' }} />
-                    </td>
-                    <td
-                      className="border border-gray-300 px-4 py-2"
-                      style={{
-                        display: "-webkit-box",
-                        WebkitBoxOrient: "vertical",
-                        WebkitLineClamp: 4,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {" "}
-                      {Projects.description}{" "}
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2">
-                      {" "}
-                      <a
-                        href={Projects.previewlink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "blue" }}
-                      >
-                        {" "}
-                        {Projects.previewlink}
-                      </a>
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-                      <button
-                        onClick={() => deleteproject(Projects._id)}
-                        className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+    <div className="space-y-8 md:space-y-10">
+      {/* Title Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="font-headline font-bold text-2xl sm:text-3xl md:text-4xl text-on-surface">
+            Manage Projects
+          </h1>
+          <p className="font-body-md text-xs sm:text-sm text-on-surface-variant mt-1">
+            Oversee your digital portfolio and create new entries.
+          </p>
         </div>
-        <ToastContainer />
+        <div className="flex gap-2">
+          <button className="liquid-glass-btn px-4 py-2 rounded-full font-label-sm text-xs font-semibold flex items-center gap-1.5 text-on-surface-variant">
+            <Filter className="w-3.5 h-3.5 text-primary" /> Filter
+          </button>
+          <button className="liquid-glass-btn px-4 py-2 rounded-full font-label-sm text-xs font-semibold flex items-center gap-1.5 text-on-surface-variant">
+            <ArrowUpDown className="w-3.5 h-3.5 text-primary" /> Sort
+          </button>
+        </div>
       </div>
 
-      {/* closing the detched data  */}
+      {/* Add New Project Form */}
+      <section>
+        <div className="liquid-glass-card ultra-rounded p-5 sm:p-8 md:p-10 inner-glow">
+          <h2 className="font-headline text-xl sm:text-2xl font-bold text-on-surface mb-6">
+            Add New Project
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+            {/* Top Row: Category and Title */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="space-y-1.5">
+                <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                  Project Category (Kind)
+                </label>
+                <input
+                  type="text"
+                  name="kind"
+                  value={data.kind}
+                  onChange={handleChange}
+                  placeholder="e.g. FINTECH • BACKEND"
+                  className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                  Project Title
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={data.title}
+                  onChange={handleChange}
+                  placeholder="e.g. E-Commerce Platform"
+                  className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Tech Stack Tags */}
+            <div className="space-y-1.5">
+              <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                Tech Stack Tags
+              </label>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={techName}
+                    onChange={(e) => setTechName(e.target.value)}
+                    placeholder="e.g. React"
+                    className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none"
+                  />
+                </div>
+                {/* Color picker box */}
+                <div
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border border-white/80 flex-shrink-0 cursor-pointer overflow-hidden shadow-sm hover:scale-105 transition-transform"
+                  style={{ backgroundColor: techColor }}
+                  title="Choose Tag Color"
+                >
+                  <input
+                    type="color"
+                    value={techColor}
+                    onChange={(e) => setTechColor(e.target.value)}
+                    className="w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTagAdd}
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl liquid-glass-btn text-primary flex items-center justify-center flex-shrink-0"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Added Tags Badges */}
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-sm liquid-glass-btn"
+                      style={{ backgroundColor: tag.color || "#8d2ebc" }}
+                    >
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => handleTagRemove(tag.id)}
+                        className="hover:opacity-75 transition-opacity ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Links Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="space-y-1.5">
+                <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                  GitHub Link
+                </label>
+                <input
+                  type="url"
+                  name="githublink"
+                  value={data.githublink}
+                  onChange={handleChange}
+                  placeholder="https://github.com/..."
+                  className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                  Live Preview
+                </label>
+                <input
+                  type="url"
+                  name="previewlink"
+                  value={data.previewlink}
+                  onChange={handleChange}
+                  placeholder="https://..."
+                  className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                rows="4"
+                value={data.description}
+                onChange={handleChange}
+                placeholder="Describe your project..."
+                className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none resize-none"
+                required
+              />
+            </div>
+
+            {/* Project Thumbnail Upload Zone */}
+            <div className="space-y-1.5">
+              <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
+                Project Thumbnail
+              </label>
+              <label className="w-full aspect-[3/1] sm:aspect-[4/1] liquid-glass-input border-2 border-dashed border-white/80 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/60 transition-all gap-1.5 group relative overflow-hidden p-4">
+                {image ? (
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt="Preview"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <ImageIcon className="w-7 h-7 text-outline group-hover:text-primary transition-colors" />
+                    <span className="text-xs font-label-sm font-semibold text-outline group-hover:text-on-surface transition-colors">
+                      Click to upload image
+                    </span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => setImage(e.target.files[0])}
+                  accept="image/*"
+                />
+              </label>
+            </div>
+
+
+            {/* Submit Button */}
+            <div className="pt-2 sm:pt-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full liquid-glass-btn-primary text-white font-headline font-bold py-3.5 sm:py-4 rounded-full shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-75 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                    <span>Saving Project...</span>
+                  </>
+                ) : (
+                  <span>Save Project</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* Published Projects Section */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-headline font-bold text-xl sm:text-2xl text-on-surface">
+            Published Projects
+          </h2>
+          <span className="liquid-glass-btn text-primary px-4 py-1.5 rounded-full font-label-xs text-xs font-bold uppercase tracking-wider">
+            {projectList.length} TOTAL
+          </span>
+        </div>
+
+        {loading ? (
+          <ProjectsSkeleton />
+        ) : projectList.length === 0 ? (
+          <div className="liquid-glass-card ultra-rounded text-center py-16 p-6">
+            <ImageIcon className="w-12 h-12 text-outline/50 mx-auto mb-3" />
+            <p className="text-on-surface-variant font-medium">No published projects found.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {projectList.map((p, index) => (
+              <div
+                key={p._id || index}
+                className="liquid-glass-card ultra-rounded overflow-hidden flex flex-col group hover:scale-[1.02] transition-all duration-500"
+              >
+                <div className="relative h-52 sm:h-56 overflow-hidden bg-surface-container">
+                  <img
+                    src={
+                      p.image?.startsWith("http")
+                        ? p.image
+                        : `http://localhost:3000/uploads/${p.image}`
+                    }
+                    alt={p.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = upload;
+                    }}
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="liquid-glass-btn-primary text-white px-3 py-1 rounded-full font-label-xs text-xs font-bold flex items-center gap-1.5 shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    {p.githublink && (
+                      <a
+                        href={p.githublink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-2 liquid-glass-btn text-white rounded-full hover:scale-110 transition-transform"
+                        title="GitHub Repo"
+                      >
+                        <Github className="w-4 h-4 text-on-surface" />
+                      </a>
+                    )}
+                    {p.previewlink && (
+                      <a
+                        href={p.previewlink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-2 liquid-glass-btn text-white rounded-full hover:scale-110 transition-transform"
+                        title="Live Preview"
+                      >
+                        <ExternalLink className="w-4 h-4 text-on-surface" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col">
+                  <div>
+                    <p className="font-label-xs text-xs text-secondary font-bold uppercase tracking-widest mb-1">
+                      {p.kind || "WEB APPLICATION"}
+                    </p>
+                    <h3 className="font-headline text-lg sm:text-xl font-bold text-on-surface">
+                      {p.title}
+                    </h3>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-on-surface-variant line-clamp-2">
+                    {p.description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {Array.isArray(p.tags) &&
+                      p.tags.slice(0, 4).map((t, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 rounded-full text-xs font-semibold text-white shadow-sm liquid-glass-btn"
+                          style={{ backgroundColor: t.color || "#0058bc" }}
+                        >
+                          {t.name}
+                        </span>
+                      ))}
+                    {Array.isArray(p.tags) && p.tags.length > 4 && (
+                      <span className="liquid-glass-btn text-on-surface-variant px-3 py-1 rounded-full text-xs font-semibold">
+                        +{p.tags.length - 4}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/40">
+                    <span className="text-xs font-label-xs text-outline font-medium">
+                      Updated recently
+                    </span>
+                    <div className="flex gap-2">
+                      {p.previewlink && (
+                        <a
+                          href={p.previewlink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-2 liquid-glass-btn text-on-surface-variant hover:text-primary rounded-full transition-colors"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => deleteProject(p._id)}
+                        className="p-2 liquid-glass-btn-danger text-error rounded-full transition-colors"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+
     </div>
   );
 }

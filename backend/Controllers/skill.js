@@ -1,4 +1,6 @@
 import skillmodel from "../models/skills.js";
+import { getCached, refreshCache } from "../utils/cache.js";
+import describeError from "../utils/httpError.js";
 
 
 const skilladd=async(req,res)=>{
@@ -13,21 +15,25 @@ const skilladd=async(req,res)=>{
      })
 
      const addskill= await skill.save()
+     await refreshCache("skill")
      res.status(201).json({success:true,message:"skill is saved",addskill})
    }catch(err){
-    res.status(500).json({success:false,message:"skill is not saved"})
-   } 
+    console.error("skilladd failed:", err);
+    const { status, message } = describeError(err, "save the skill");
+    res.status(status).json({ success: false, message });
+   }
 }
 
 //fetching
 
 const fetchskill=async(req,res)=>{
     try{
-     const find =await new skillmodel.find({})
+     const find =await getCached("skill") // Served from RAM, not MongoDB
      res.status(201).json({success:true,message:"Skill are fetched",find:find})
-     console.log(find)
     }catch(err){
-        res.status(201).json({success:true,message:"Skill are fetched"})
+        console.error("fetchskill failed:", err);
+        const { status, message } = describeError(err, "load the skills");
+        res.status(status).json({ success: false, message });
     }
 }
 
