@@ -77,4 +77,35 @@ const addexpereince= async(req,res)=>{
 };
 
  
-export { addexpereince,workfetch,deletework}
+const updateexperience = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { role, company, description, duration, location, techStack } = req.body;
+
+    if (typeof description === 'string') {
+      try { description = JSON.parse(description); } catch(e) {}
+    }
+    if (typeof techStack === 'string') {
+      try { techStack = JSON.parse(techStack); } catch(e) {}
+    }
+
+    const updateData = { role, company, description, duration, location, techStack };
+    if (req.file) {
+      updateData.image = req.file.filename;
+    }
+
+    const updated = await ExpereinceModel.findByIdAndUpdate(id, updateData, { new: true });
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Experience record not found" });
+    }
+
+    await refreshCache("work");
+    return res.status(200).json({ success: true, message: "Experience updated successfully", Expereince: updated });
+  } catch (err) {
+    console.error("updateexperience failed:", err);
+    const { status, message } = describeError(err, "update the work experience");
+    return res.status(status).json({ success: false, message });
+  }
+};
+
+export { addexpereince, workfetch, deletework, updateexperience };

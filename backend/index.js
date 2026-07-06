@@ -2,7 +2,6 @@ import dotenv from 'dotenv'
 dotenv.config()
 import express from 'express'
 import mongoose from 'mongoose';
-import bodyParser from 'body-parser'
 import router from './Routers/router.js';
 import { warmCache } from './utils/cache.js';
 import { initSocket } from './utils/socket.js';
@@ -15,8 +14,9 @@ import dns from 'dns'
 import { fileURLToPath } from 'url';
 const app = express();
 
-const port = 3000;
-const URL = process.env.MONGOURL
+const port = process.env.PORT || 3000;
+const URL = process.env.MONGOURL;
+
 
 //middleware
 

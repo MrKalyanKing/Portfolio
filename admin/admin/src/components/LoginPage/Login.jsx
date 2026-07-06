@@ -25,9 +25,11 @@ const LoginPopUp = () => {
   const onLogin = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    const url = "http://localhost:3000/api/login";
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+    const url = `${baseUrl}/login`;
     try {
       const response = await axios.post(url, data);
+
       if (response.data.success) {
         localStorage.setItem("token", response.data.token);
         toast.success("Login successful! Redirecting...");

@@ -1,9 +1,12 @@
 import React, { useContext, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import upload from "../assets/upload.jpg";
+
 import axios from "axios";
 import { AppContext } from "./Contextprovider";
 import { toast } from "react-toastify";
-import { Briefcase, Building2, MapPin, Calendar, Trash2, Plus, TrendingUp, Edit3, Loader2 } from "lucide-react";
+import { Briefcase, Building2, MapPin, Calendar, Trash2, Plus, TrendingUp, Edit3, Loader2, X } from "lucide-react";
+
 import { ExperienceSkeleton } from "./PageSkeleton";
 import { getErrorMessage, getResponseMessage } from "../utils/errorMessage";
 
@@ -41,6 +44,74 @@ const Experience = () => {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Edit Experience Modal States
+  const [editingExperience, setEditingExperience] = useState(null);
+  const [editData, setEditData] = useState({
+    role: "",
+    company: "",
+    location: "",
+    duration: "",
+    description: "",
+    techStack: "",
+  });
+  const [editImage, setEditImage] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleOpenEditModal = (item) => {
+    setEditingExperience(item);
+    setEditData({
+      role: item.role || "",
+      company: item.company || "",
+      location: item.location || "",
+      duration: item.duration || "",
+      description: Array.isArray(item.description) ? item.description.join("\n") : (item.description || ""),
+      techStack: Array.isArray(item.techStack) ? item.techStack.join(", ") : (item.techStack || ""),
+    });
+    setEditImage(null);
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingExperience) return;
+    setIsUpdating(true);
+
+    const pointsArray = editData.description
+      .split("\n")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    const techStackArray = editData.techStack
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    const formData = new FormData();
+    formData.append("role", editData.role);
+    formData.append("company", editData.company);
+    formData.append("location", editData.location);
+    formData.append("duration", editData.duration);
+    formData.append("description", JSON.stringify(pointsArray));
+    formData.append("techStack", JSON.stringify(techStackArray));
+    if (editImage) formData.append("image", editImage);
+
+    try {
+      const response = await axios.post(`${url}/work/update/${editingExperience._id}`, formData);
+      if (response.data.success) {
+        handleSuccess("Experience record updated successfully!");
+        setEditingExperience(null);
+        fetchContacts();
+      } else {
+        handleErr("Failed to update experience.");
+      }
+    } catch (err) {
+      console.error("Error updating experience:", err);
+      handleErr("Server error while updating.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -409,6 +480,13 @@ const Experience = () => {
 
                 <div className="flex items-center gap-2 self-end sm:self-center">
                   <button
+                    onClick={() => handleOpenEditModal(exp)}
+                    className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-white/40 transition-colors"
+                    title="Edit Record"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(exp._id)}
                     className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-error-container/40 transition-colors"
                     title="Delete Record"
@@ -422,8 +500,179 @@ const Experience = () => {
         )}
       </section>
 
+      {/* Edit Experience Responsive Liquid Glass Modal */}
+      {editingExperience && createPortal(
+        <div className="fixed inset-0 w-screen h-screen z-[9999] backdrop-blur-md bg-grey-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-fadeIn">
+          {/* Ambient Glow mesh background behind modal */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+            <div className="w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] animate-pulse"></div>
+            <div className="w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[90px] -ml-32"></div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-2xl border border-white/90 shadow-[0_25px_70px_rgba(0,0,0,0.18)] rounded-[32px] p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-6 relative my-auto">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center shadow-sm">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-headline text-lg sm:text-xl font-bold text-slate-800">
+                    Edit Experience
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">Update employment record details</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingExperience(null)}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Job Title:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.role}
+                    onChange={(e) => setEditData({ ...editData, role: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Company Name:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.company}
+                    onChange={(e) => setEditData({ ...editData, company: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Location:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.location}
+                    onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Duration:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.duration}
+                    onChange={(e) => setEditData({ ...editData, duration: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Description Points (One per line):
+                </label>
+                <textarea
+                  rows="4"
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none resize-none"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Tech Stack (Comma separated):
+                </label>
+                <input
+                  type="text"
+                  value={editData.techStack}
+                  onChange={(e) => setEditData({ ...editData, techStack: e.target.value })}
+                  className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Company Logo (Optional - upload to replace):
+                </label>
+                <div className="w-full border-2 border-dashed border-slate-300/80 bg-slate-50/70 hover:bg-slate-50 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <img
+                        src={editImage ? URL.createObjectURL(editImage) : (editingExperience.image ? (editingExperience.image.startsWith("http") ? editingExperience.image : `${url.replace('/api', '')}/uploads/${editingExperience.image}`) : upload)}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Update logo asset</p>
+                      <p className="text-[11px] text-slate-500 font-medium">Leave empty to keep existing logo</p>
+                    </div>
+                  </div>
+                  <label className="cursor-pointer bg-white hover:bg-slate-100 border border-slate-200 text-purple-700 text-xs font-bold px-4 py-2 rounded-full hover:scale-105 transition-all shadow-sm">
+                    Choose File
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => setEditImage(e.target.files[0])}
+                      accept="image/*"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => setEditingExperience(null)}
+                  className="px-6 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Updating Experience...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 };
 
 export default Experience;
+
+

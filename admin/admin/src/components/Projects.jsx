@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import upload from "../assets/upload.jpg";
+
 import { AppContext } from "./Contextprovider";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -14,7 +16,9 @@ import {
   ArrowUpDown,
   Eye,
   Loader2,
+  Edit3,
 } from "lucide-react";
+
 import { ProjectsSkeleton } from "./PageSkeleton";
 import { getErrorMessage, getResponseMessage } from "../utils/errorMessage";
 
@@ -38,6 +42,85 @@ export function Projects() {
 
   const [techName, setTechName] = useState("");
   const [techColor, setTechColor] = useState("#8d2ebc");
+
+  // Edit Modal States
+  const [editingProject, setEditingProject] = useState(null);
+  const [editData, setEditData] = useState({ title: "", kind: "", description: "", githublink: "", previewlink: "" });
+  const [editTags, setEditTags] = useState([]);
+  const [editImage, setEditImage] = useState(null);
+  const [editTechName, setEditTechName] = useState("");
+  const [editTechColor, setEditTechColor] = useState("#8d2ebc");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleOpenEditModal = (project) => {
+    setEditingProject(project);
+    setEditData({
+      title: project.title || "",
+      kind: project.kind || "",
+      description: project.description || "",
+      githublink: project.githublink || "",
+      previewlink: project.previewlink || "",
+    });
+    setEditTags(Array.isArray(project.tags) ? project.tags : []);
+    setEditImage(null);
+  };
+
+  const handleEditTagAdd = () => {
+    if (editTechName.trim() && editTechColor) {
+      setEditTags([
+        ...editTags,
+        {
+          id: Date.now(),
+          name: editTechName.trim(),
+          color: editTechColor,
+        },
+      ]);
+      setEditTechName("");
+    }
+  };
+
+  const handleEditTagRemove = (id) => {
+    setEditTags(editTags.filter((tag) => tag.id !== id));
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingProject) return;
+    setIsUpdating(true);
+
+    const formData = new FormData();
+    formData.append("title", editData.title);
+    formData.append("kind", editData.kind);
+    formData.append("description", editData.description);
+    formData.append("githublink", editData.githublink);
+    formData.append("previewlink", editData.previewlink);
+    formData.append("tags", JSON.stringify(editTags));
+
+    if (editImage) {
+      formData.append("image", editImage);
+    }
+
+    try {
+      const response = await axios.post(
+        `${url}/project/update/${editingProject._id}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      if (response.data.success) {
+        handleSuccess("Project updated successfully!");
+        setEditingProject(null);
+        projectFetch();
+      } else {
+        handleErr(getResponseMessage(response.data, "Failed to update project."));
+      }
+    } catch (err) {
+      console.error("Error updating project:", err);
+      handleErr(getErrorMessage(err, "Failed to update project."));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -98,7 +181,7 @@ export function Projects() {
 
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/project",
+        `${url}/project`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -123,7 +206,7 @@ export function Projects() {
 
   const projectFetch = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/show/project");
+      const response = await axios.get(`${url}/show/project`);
       if (response.data.success && Array.isArray(response.data.project)) {
         setProjectList(response.data.project);
       } else {
@@ -136,12 +219,12 @@ export function Projects() {
     }
   };
 
-  const deleteProject = async (id) => {
+  const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this project?");
     if (!confirmDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/delete/project/${id}`, { method: "DELETE" });
+      const response = await fetch(`${url}/delete/project/${id}`, { method: "DELETE" });
       const result = await response.json();
       if (result.success) {
         handleSuccess("Project deleted successfully!");
@@ -315,18 +398,19 @@ export function Projects() {
             {/* Description */}
             <div className="space-y-1.5">
               <label className="font-label-sm text-xs font-semibold text-on-surface-variant ml-1">
-                Description
+                Description Points (End each point with a period '.' or new line):
               </label>
               <textarea
                 name="description"
                 rows="4"
                 value={data.description}
                 onChange={handleChange}
-                placeholder="Describe your project..."
+                placeholder="Built real-time features with WebSockets. Optimized MongoDB queries. Implemented JWT authentication."
                 className="w-full liquid-glass-input rounded-2xl px-4 sm:px-5 py-3 text-sm text-on-surface placeholder:text-outline/60 outline-none resize-none"
                 required
               />
             </div>
+
 
             {/* Project Thumbnail Upload Zone */}
             <div className="space-y-1.5">
@@ -461,9 +545,26 @@ export function Projects() {
                     </h3>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-on-surface-variant line-clamp-2">
-                    {p.description}
-                  </p>
+                  {typeof p.description === 'string' && p.description.includes('.') ? (
+                    <ul className="text-xs sm:text-sm text-on-surface-variant space-y-1 my-1">
+                      {p.description
+                        .split(/(?<=\.)\s+|\n+/)
+                        .map((point) => point.trim())
+                        .filter((point) => point.length > 0)
+                        .slice(0, 3)
+                        .map((point, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <span className="text-primary mt-1 text-[8px] flex-shrink-0">•</span>
+                            <span>{point.endsWith('.') ? point : `${point}.`}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs sm:text-sm text-on-surface-variant line-clamp-2">
+                      {p.description}
+                    </p>
+                  )}
+
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     {Array.isArray(p.tags) &&
@@ -500,7 +601,14 @@ export function Projects() {
                         </a>
                       )}
                       <button
-                        onClick={() => deleteProject(p._id)}
+                        onClick={() => handleOpenEditModal(p)}
+                        className="p-2 liquid-glass-btn text-primary rounded-full transition-colors"
+                        title="Edit Project"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(p._id)}
                         className="p-2 liquid-glass-btn-danger text-error rounded-full transition-colors"
                         title="Delete Project"
                       >
@@ -515,7 +623,216 @@ export function Projects() {
         )}
       </section>
 
+      {/* Edit Project Responsive Liquid Glass Modal */}
+      {editingProject && createPortal(
+        <div className="fixed inset-0 w-screen h-screen z-[9999] backdrop-blur-md bg-grey-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-fadeIn">
+          {/* Ambient Glow mesh background behind modal */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+            <div className="w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] animate-pulse"></div>
+            <div className="w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[90px] -ml-32"></div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-2xl border border-white/90 shadow-[0_25px_70px_rgba(0,0,0,0.18)] rounded-[32px] p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-6 relative my-auto">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center shadow-sm">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-headline text-lg sm:text-xl font-bold text-slate-800">
+                    Edit Project
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">Update project parameters and assets</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProject(null)}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Project Title:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.title}
+                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Category / Kind:
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.kind}
+                    onChange={(e) => setEditData({ ...editData, kind: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Tech Stack Tags Editor */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Tech Stack Tags:
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editTechName}
+                    onChange={(e) => setEditTechName(e.target.value)}
+                    placeholder="e.g. React"
+                    className="flex-1 bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-2.5 shadow-inner transition-all outline-none"
+                  />
+                  <input
+                    type="color"
+                    value={editTechColor}
+                    onChange={(e) => setEditTechColor(e.target.value)}
+                    className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleEditTagAdd}
+                    className="px-4 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-purple-500/20 transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" /> Add
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {editTags.map((tag) => (
+                    <span
+                      key={tag.id || tag.name}
+                      style={{ backgroundColor: tag.color + "20", borderColor: tag.color + "50", color: tag.color }}
+                      className="px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm"
+                    >
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => handleEditTagRemove(tag.id)}
+                        className="hover:opacity-75"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    GitHub Link:
+                  </label>
+                  <input
+                    type="url"
+                    value={editData.githublink}
+                    onChange={(e) => setEditData({ ...editData, githublink: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-1">
+                    Live Preview Link:
+                  </label>
+                  <input
+                    type="url"
+                    value={editData.previewlink}
+                    onChange={(e) => setEditData({ ...editData, previewlink: e.target.value })}
+                    className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Description Points (End each point with a period '.' or new line):
+                </label>
+                <textarea
+                  rows="3"
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  placeholder="Built real-time features with WebSockets. Optimized MongoDB queries. Implemented JWT authentication."
+                  className="w-full bg-slate-50/90 border border-slate-200/90 focus:border-purple-600 focus:bg-white focus:ring-4 focus:ring-purple-600/15 text-slate-800 text-sm rounded-2xl px-4 py-3 shadow-inner transition-all outline-none resize-none"
+                  required
+                />
+              </div>
+
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 ml-1">
+                  Thumbnail Image (Optional - upload to replace):
+                </label>
+                <div className="w-full border-2 border-dashed border-slate-300/80 bg-slate-50/70 hover:bg-slate-50 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <img
+                        src={editImage ? URL.createObjectURL(editImage) : (editingProject.image ? (editingProject.image.startsWith("http") ? editingProject.image : `${url.replace('/api', '')}/uploads/${editingProject.image}`) : upload)}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Update thumbnail asset</p>
+                      <p className="text-[11px] text-slate-500 font-medium">Leave empty to keep existing image</p>
+                    </div>
+                  </div>
+                  <label className="cursor-pointer bg-white hover:bg-slate-100 border border-slate-200 text-purple-700 text-xs font-bold px-4 py-2 rounded-full hover:scale-105 transition-all shadow-sm">
+                    Choose File
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => setEditImage(e.target.files[0])}
+                      accept="image/*"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => setEditingProject(null)}
+                  className="px-6 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Updating Project...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );
 }
+
+

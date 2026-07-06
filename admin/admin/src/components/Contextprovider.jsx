@@ -4,11 +4,11 @@ export const AppContext=createContext(null)
 
 const Contextprovider=(props)=>{
  
-
-   const url='http://localhost:3000/api'
+   const url = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
    
    const [token,setToken]=useState('')
    const[reports,setReports]=useState([])
+
 
    const fetchReport=async ()=>{
      const fetch= await axios.post(url+'/show')

@@ -1,5 +1,3 @@
-import pkg from 'body-parser';
-const { json } = pkg;
 import projectmodel from "../models/ProjectModel.js";
 import imagekit from "../utils/imagekit.js";
 import fs from "fs";
@@ -108,6 +106,40 @@ const deleteproject=async (req,res)=>{
    }
 }
 
-export { addproject , projectfetch,deleteproject };
+const updateproject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, githublink, previewlink, kind } = req.body;
+
+    let tags = [];
+    if (req.body.tags) {
+      try {
+        tags = typeof req.body.tags === 'string' ? JSON.parse(req.body.tags) : req.body.tags;
+      } catch (e) {
+        tags = [];
+      }
+    }
+
+    const updateData = { title, description, githublink, previewlink, kind, tags };
+    if (req.file) {
+      updateData.image = req.file.filename;
+    }
+
+    const updated = await projectmodel.findByIdAndUpdate(id, updateData, { new: true });
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    await refreshCache("project");
+    res.status(200).json({ success: true, message: "Project updated successfully", project: updated });
+  } catch (err) {
+    console.error("updateproject failed:", err);
+    const { status, message } = describeError(err, "update the project");
+    res.status(status).json({ success: false, message });
+  }
+};
+
+export { addproject, projectfetch, deleteproject, updateproject };
+
 
 

@@ -89,9 +89,25 @@ export function ProjectsSection({ projects, loading = false, error = null }) {
                 <h3 className="font-display font-bold text-[24px] m-0 text-[#f4f9f6] tracking-tight">
                   {p.title}
                 </h3>
-                <p className="mt-[14px] text-[15px] leading-[1.6] text-[#91a69e] flex-1">
-                  {p.desc}
-                </p>
+                {typeof (p.desc || p.description) === 'string' && (p.desc || p.description).includes('.') ? (
+                  <ul className="mt-[14px] space-y-[6px] text-[14.5px] leading-[1.6] text-[#91a69e] flex-1">
+                    {(p.desc || p.description)
+                      .split(/(?<=\.)\s+|\n+/)
+                      .map((point) => point.trim())
+                      .filter((point) => point.length > 0)
+                      .map((point, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <span className="text-[#0bc793] mt-[7px] text-[8px] flex-shrink-0">•</span>
+                          <span>{point.endsWith('.') ? point : `${point}.`}</span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="mt-[14px] text-[15px] leading-[1.6] text-[#91a69e] flex-1">
+                    {p.desc || p.description}
+                  </p>
+                )}
+
                 
                 <div className="flex flex-wrap gap-[10px] mt-[24px]">
                   {p.tags.map((tag, i) => (
