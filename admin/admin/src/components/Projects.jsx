@@ -494,7 +494,7 @@ export function Projects() {
                     src={
                       p.image?.startsWith("http")
                         ? p.image
-                        : `http://localhost:3000/uploads/${p.image}`
+                        : `${url.replace("/api", "")}/uploads/${p.image}`
                     }
                     alt={p.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"

@@ -24,12 +24,12 @@ export function getErrorMessage(err, fallback = "Something went wrong.") {
 
   // axios error with no response at all: server unreachable
   if (err?.request) {
-    return "Can't reach the server — make sure the backend is running on http://localhost:3000 and check your internet connection.";
+    return "Can't reach the server — make sure the backend is running and check your internet connection.";
   }
 
   // fetch() network failure ("Failed to fetch" / "NetworkError")
   if (err instanceof TypeError && /fetch|network/i.test(err.message)) {
-    return "Can't reach the server — make sure the backend is running on http://localhost:3000 and check your internet connection.";
+    return "Can't reach the server — make sure the backend is running and check your internet connection.";
   }
 
   // Response body parse failure (server returned HTML instead of JSON)

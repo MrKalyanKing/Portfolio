@@ -121,7 +121,7 @@ export default function PortfolioPage() {
     // admin panel adds/edits/deletes data, so the page updates in place.
     // Reconnection with backoff is handled by socket.io-client; if the
     // socket is unavailable the page still works from the initial fetch.
-    const socket = io(API_BASE, { reconnectionDelayMax: 10000 });
+    const socket = io(API_BASE || window.location.origin, { reconnectionDelayMax: 10000 });
 
     socket.on('collection:update', ({ collection, data }) => {
       if (!Array.isArray(data)) return;

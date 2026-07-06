@@ -1,0 +1,14 @@
+# Netlify redirect rules — copied into dist/ by Vite, honored even for
+# drag-and-drop deploys (netlify.toml [build.environment] is NOT — it only
+# applies when Netlify itself runs the build from a connected git repo).
+#
+# Proxy API + uploaded images to the EC2 backend (server-side, so the
+# browser only ever talks HTTPS to Netlify — no mixed-content block).
+# IF BACKEND MOVES TO RENDER: delete the two proxy lines below (call Render
+# directly via .env.production instead) but KEEP the /index.html fallback.
+
+/api/*      http://13.126.4.35:3000/api/:splat      200!
+/uploads/*  http://13.126.4.35:3000/uploads/:splat  200!
+
+# SPA fallback so /login etc. work on refresh — keep this line always.
+/*          /index.html                             200

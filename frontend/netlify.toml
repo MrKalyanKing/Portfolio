@@ -1,0 +1,77 @@
+# Netlify config for the public portfolio site.
+#
+# CURRENT SETUP (backend on EC2, plain HTTP):
+# The backend on EC2 is plain HTTP, and browsers block http:// requests from
+# an https:// page (mixed content). So in production the app calls its own
+# Netlify origin with relative URLs (VITE_API_URL="/") and Netlify proxies
+# those requests to the backend server-side.
+#
+# ============================================================================
+# IF YOU DEPLOY THE BACKEND TO RENDER LATER — follow these steps:
+# ============================================================================
+# Render serves your backend over HTTPS (https://your-app.onrender.com),
+# so the mixed-content problem disappears and the proxy below is NOT needed.
+# The browser can call Render directly (WebSockets work directly too).
+#
+# Step 1: On Render, create a "Web Service" from the backend/ folder.
+#         - Build command:  npm install
+#         - Start command:  node index.js   (or your start script)
+#         - Add ALL backend env vars in Render's dashboard (Environment tab):
+#           MONGOURL, JWT, USER_PASS, USER_EMAIL, FRONTEND_URL, ADMIN_URL,
+#           IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT.
+#           Do NOT set PORT — Render provides it automatically.
+#
+# Step 2: Copy your Render URL, e.g. https://portfolio-backend.onrender.com
+#
+# Step 3: In THIS file:
+#         - Comment out the [build.environment] block below and uncomment
+#           the Render version, putting in your real Render URL.
+#         - Comment out (or delete) the /api, /uploads and /socket.io
+#           proxy redirects below. KEEP the final SPA fallback redirect!
+#
+# Step 4: Commit + push. Netlify redeploys automatically.
+#
+# --- Render version (uncomment and edit when ready): ---
+# [build.environment]
+#   VITE_API_URL = "https://YOUR-APP-NAME.onrender.com"
+#
+# NOTE for the frontend: use the BARE Render URL (no /api at the end) —
+# the frontend code appends /api by itself.
+#
+# NOTE: Render free tier "spins down" after 15 min of no traffic; the first
+# request after that takes ~30-60s to wake up. The page will show the saved
+# fallback copy until the backend wakes.
+# ============================================================================
+
+[build.environment]
+  VITE_API_URL = "/"
+
+# API requests                       <- not needed with Render (HTTPS direct)
+[[redirects]]
+  from = "/api/*"
+  to = "http://13.126.4.35:3000/api/:splat"
+  status = 200
+  force = true
+
+# Locally uploaded images served by the backend
+#                                    <- not needed with Render (HTTPS direct)
+[[redirects]]
+  from = "/uploads/*"
+  to = "http://13.126.4.35:3000/uploads/:splat"
+  status = 200
+  force = true
+
+# Socket.IO live updates (long-polling; Netlify can't proxy WebSocket upgrades)
+#                                    <- not needed with Render (HTTPS direct)
+[[redirects]]
+  from = "/socket.io/*"
+  to = "http://13.126.4.35:3000/socket.io/:splat"
+  status = 200
+  force = true
+
+# SPA fallback so client-side routes work on refresh/deep links
+# KEEP THIS even after moving to Render — it is for React Router, not the API.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

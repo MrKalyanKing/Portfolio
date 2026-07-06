@@ -1,0 +1,62 @@
+# Netlify config for the admin panel.
+#
+# CURRENT SETUP (backend on EC2, plain HTTP):
+# The backend on EC2 is plain HTTP, and browsers block http:// requests from
+# an https:// page (mixed content). So in production the app calls its own
+# Netlify origin with relative URLs (VITE_API_URL="/api") and Netlify proxies
+# those requests to the backend server-side.
+#
+# ============================================================================
+# IF YOU DEPLOY THE BACKEND TO RENDER LATER — follow these steps:
+# ============================================================================
+# Render serves your backend over HTTPS (https://your-app.onrender.com),
+# so the mixed-content problem disappears and the proxy below is NOT needed.
+#
+# Step 1: Deploy the backend on Render (see frontend/netlify.toml for the
+#         full backend setup steps — do it once, both apps share it).
+#
+# Step 2: Copy your Render URL, e.g. https://portfolio-backend.onrender.com
+#
+# Step 3: In THIS file:
+#         - Comment out the [build.environment] block below and uncomment
+#           the Render version, putting in your real Render URL.
+#         - Comment out (or delete) the /api and /uploads proxy redirects
+#           below. KEEP the final SPA fallback redirect!
+#
+# Step 4: Commit + push. Netlify redeploys automatically.
+#
+# --- Render version (uncomment and edit when ready): ---
+# [build.environment]
+#   VITE_API_URL = "https://YOUR-APP-NAME.onrender.com/api"
+#
+# NOTE for the admin: the URL MUST end with /api — the admin code expects
+# the /api suffix to be included (opposite of the frontend).
+#
+# NOTE: Render free tier "spins down" after 15 min of no traffic; the first
+# login after that takes ~30-60s to wake the server. Just wait and retry.
+# ============================================================================
+
+[build.environment]
+  VITE_API_URL = "/api"
+
+# API requests                       <- not needed with Render (HTTPS direct)
+[[redirects]]
+  from = "/api/*"
+  to = "http://13.126.4.35:3000/api/:splat"
+  status = 200
+  force = true
+
+# Locally uploaded images served by the backend
+#                                    <- not needed with Render (HTTPS direct)
+[[redirects]]
+  from = "/uploads/*"
+  to = "http://13.126.4.35:3000/uploads/:splat"
+  status = 200
+  force = true
+
+# SPA fallback so client-side routes work on refresh/deep links
+# KEEP THIS even after moving to Render — it is for React Router, not the API.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
