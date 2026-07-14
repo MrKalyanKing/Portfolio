@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import resumePdf from '../../assets/resume/KalyanResume.pdf';
 
-export function Navigation({ navData }) {
+export function Navigation({ navData, onBookCall }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Prevent scrolling when mobile menu is open
@@ -55,11 +55,18 @@ export function Navigation({ navData }) {
           ))}
         </div>
         
-        <div className="hidden md:block pr-[2px]">
-          <a 
-            href={resumePdf || "/KalyanResume.pdf"} 
-            download="KalyanResume.pdf" 
-            className="no-underline text-[13.5px] font-bold text-[#04140d] px-[16px] py-[9px] rounded-full transition-all duration-200 hover:-translate-y-[2px] inline-block"
+        <div className="hidden md:flex items-center gap-[10px] pr-[2px]">
+          <a
+            href={resumePdf || "/KalyanResume.pdf"}
+            download="KalyanResume.pdf"
+            className="no-underline text-[13px] font-medium text-[#a6b6ae] px-[8px] py-[7px] transition-colors duration-200 hover:text-white"
+          >
+            Resume
+          </a>
+          <button
+            type="button"
+            onClick={onBookCall}
+            className="cursor-pointer border-0 text-[13.5px] font-bold text-[#04140d] px-[16px] py-[9px] rounded-full transition-all duration-200 hover:-translate-y-[2px] inline-block"
             style={{
               background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent), #fff 12%), var(--accent))',
               boxShadow: '0 6px 22px color-mix(in srgb, var(--accent) 42%, transparent)',
@@ -67,8 +74,8 @@ export function Navigation({ navData }) {
             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 30px color-mix(in srgb, var(--accent) 55%, transparent)'}
             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 6px 22px color-mix(in srgb, var(--accent) 42%, transparent)'}
           >
-            Resume
-          </a>
+            Book a call
+          </button>
         </div>
 
         {/* Mobile Menu Toggle Button */}
@@ -134,14 +141,25 @@ export function Navigation({ navData }) {
           ))}
         </div>
 
-        <div className="mt-auto pt-8">
-          <a 
-            href={resumePdf || "/KalyanResume.pdf"} 
-            download="KalyanResume.pdf" 
-            className="flex items-center justify-center w-full no-underline text-[15px] font-bold text-[#04140d] py-[14px] rounded-xl transition-all duration-200 hover:-translate-y-[2px]"
+        <div className="mt-auto pt-8 flex flex-col gap-3">
+          <button
+            type="button"
+            className="flex items-center justify-center w-full cursor-pointer border-0 text-[15px] font-bold text-[#04140d] py-[14px] rounded-xl transition-all duration-200 hover:-translate-y-[2px]"
             style={{
               background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent), #fff 12%), var(--accent))',
               boxShadow: '0 6px 22px color-mix(in srgb, var(--accent) 42%, transparent)',
+            }}
+            onClick={() => { setIsMobileMenuOpen(false); onBookCall?.(); }}
+          >
+            Book a call
+          </button>
+          <a
+            href={resumePdf || "/KalyanResume.pdf"}
+            download="KalyanResume.pdf"
+            className="flex items-center justify-center w-full no-underline text-[14px] font-semibold text-[#cdd8d2] py-[12px] rounded-xl transition-all duration-200 hover:text-white"
+            style={{
+              background: 'linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}
             onClick={() => setIsMobileMenuOpen(false)}
           >

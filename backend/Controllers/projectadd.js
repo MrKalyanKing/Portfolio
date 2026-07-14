@@ -4,6 +4,28 @@ import fs from "fs";
 import { getCached, refreshCache } from "../utils/cache.js";
 import describeError from "../utils/httpError.js";
 
+// Upload a multer file to ImageKit and return its hosted URL. Falls back to
+// the local filename if ImageKit is unconfigured or the upload fails — but a
+// filename only renders on the server that stored the file, so ImageKit is
+// what makes images visible from every environment.
+const uploadImage = async (file) => {
+  if (!file) return null;
+  if (!imagekit) return file.filename;
+  try {
+    const fileContent = fs.readFileSync(file.path);
+    const uploadResponse = await imagekit.upload({
+      file: fileContent,
+      fileName: file.filename,
+      folder: "/portfolio_projects",
+    });
+    fs.unlinkSync(file.path); // Clean up the local copy
+    return uploadResponse.url;
+  } catch (uploadErr) {
+    console.error("ImageKit Upload Error:", uploadErr);
+    return file.filename;
+  }
+};
+
 // add project
 const addproject = async (req, res) => {
   try {
@@ -30,26 +52,9 @@ const addproject = async (req, res) => {
       return res.status(400).json({ success: false, message: `Missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.` });
     }
 
-    // Upload to ImageKit if configured
-    if (imagekit && req.file) {
-      try {
-        const fileContent = fs.readFileSync(req.file.path);
-        const uploadResponse = await imagekit.upload({
-          file: fileContent,
-          fileName: req.file.filename,
-          folder: "/portfolio_projects",
-        });
-        image_file = uploadResponse.url; // Save the ImageKit URL instead
-        // Optional: Clean up local file
-        fs.unlinkSync(req.file.path);
-      } catch (uploadErr) {
-        console.error("ImageKit Upload Error:", uploadErr);
-        // Fallback to local filename if upload fails, or return error. We'll fallback.
-      }
-    } else if (!imagekit && req.file) {
-      // If imagekit is not configured, we'll store a complete URL using the local server (assuming it's localhost:3000 for local dev)
-      // Actually, since the frontend expects `p.image` to be a full URL, and we just save filename, let's keep it as filename
-      // But if imagekit is enabled, image_file is now a URL.
+    // Upload to ImageKit if configured (falls back to the local filename)
+    if (req.file) {
+      image_file = await uploadImage(req.file);
     }
 
     // Create the project object and save it
@@ -122,7 +127,9 @@ const updateproject = async (req, res) => {
 
     const updateData = { title, description, githublink, previewlink, kind, tags };
     if (req.file) {
-      updateData.image = req.file.filename;
+      // Same ImageKit path as addproject — storing just the filename made the
+      // image visible only on the server that received the upload.
+      updateData.image = await uploadImage(req.file);
     }
 
     const updated = await projectmodel.findByIdAndUpdate(id, updateData, { new: true });

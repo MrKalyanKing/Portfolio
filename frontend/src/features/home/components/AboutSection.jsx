@@ -17,14 +17,7 @@ export function AboutSection({ aboutText, aboutStats, socials }) {
                 data-reveal 
                 className={`text-[clamp(16px,1.8vw,18.5px)] leading-[1.85] text-[#a6b6ae] ${idx === 0 ? 'm-0' : 'mt-[20px]'}`}
               >
-                {/* To support the span around Rocket.Chat inside the string, we might need dangerouslySetInnerHTML or parse it. For exact clone, let's render it directly */}
-                {idx === 1 ? (
-                  <>
-                    Beyond client work, I contribute production-ready code to <span className="text-[#e7efe9] font-semibold">Rocket.Chat</span>, a large-scale open-source platform, and sharpen my fundamentals with 260+ solved DSA problems. I like turning complex problems into clean, reliable software.
-                  </>
-                ) : (
-                  text
-                )}
+                {text}
               </p>
             ))}
             

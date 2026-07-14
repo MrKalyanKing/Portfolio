@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { BookCallModal } from '../../../shared/components/BookCallModal';
 import { portfolioConfig } from '../../../config/portfolioData';
 import { API_BASE } from '../../../config/api';
 import { useReveal } from '../../../hooks/useReveal';
 import { BackgroundGlow } from '../../../shared/components/BackgroundGlow';
 import { Navigation } from '../../../shared/components/Navigation';
 import { HeroSection } from '../../home/components/HeroSection';
+import { ServicesSection } from '../../home/components/ServicesSection';
+import { FlagshipSection } from '../../home/components/FlagshipSection';
+import { ApproachSection } from '../../home/components/ApproachSection';
+import { ProofSection } from '../../home/components/ProofSection';
 import { AboutSection } from '../../home/components/AboutSection';
 import { WorkExperienceSection } from '../../work/components/WorkExperienceSection';
 import { StackSection } from '../../home/components/StackSection';
 import { ProjectsSection } from '../../projects/components/ProjectsSection';
-import { DSASection } from '../../home/components/DSASection';
 import { ContactSection } from '../../home/components/ContactSection';
 
 // Explain a failed section fetch in plain words. The section still renders
@@ -57,6 +61,10 @@ export default function PortfolioPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [workError, setWorkError] = useState(null);
   const [projectsError, setProjectsError] = useState(null);
+  const [bookCallOpen, setBookCallOpen] = useState(false);
+
+  const openBookCall = useCallback(() => setBookCallOpen(true), []);
+  const closeBookCall = useCallback(() => setBookCallOpen(false), []);
 
   useReveal(data.theme.reduceMotion);
 
@@ -142,14 +150,18 @@ export default function PortfolioPage() {
       <BackgroundGlow accent={data.theme.accent} showGrid={data.theme.showGrid} reduceMotion={data.theme.reduceMotion} />
       
       <div className="relative z-10">
-        <Navigation navData={data.nav} />
-        <HeroSection hero={data.hero} />
-        <AboutSection aboutText={data.aboutText} aboutStats={data.aboutStats} socials={data.socials} />
-        <WorkExperienceSection timeline={data.timeline} loading={loadingWork} error={workError} />
-        <StackSection techGroups={data.techGroups} />
+        <Navigation navData={data.nav} onBookCall={openBookCall} />
+        <HeroSection hero={data.hero} onBookCall={openBookCall} />
+        <ServicesSection services={data.services} note={data.servicesNote} onBookCall={openBookCall} />
+        <FlagshipSection flagship={data.flagship} onBookCall={openBookCall} />
         <ProjectsSection projects={data.projects} loading={loadingProjects} error={projectsError} />
-        <DSASection dsaStats={data.dsaStats} />
-        <ContactSection socials={data.socials} />
+        <ApproachSection approach={data.approach} />
+        <StackSection techGroups={data.techGroups} />
+        <ProofSection proof={data.proof} />
+        <WorkExperienceSection timeline={data.timeline} loading={loadingWork} error={workError} />
+        <AboutSection aboutText={data.aboutText} aboutStats={data.aboutStats} socials={data.socials} />
+        <ContactSection socials={data.socials} onBookCall={openBookCall} />
+        <BookCallModal open={bookCallOpen} onClose={closeBookCall} />
       </div>
     </div>
   );

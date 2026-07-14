@@ -6,13 +6,13 @@ export function WorkExperienceSection({ timeline, loading = false, error = null 
     <section id="work" className="pt-[clamp(70px,9vw,130px)] px-[clamp(20px,6vw,96px)] pb-[clamp(70px,9vw,130px)] scroll-mt-[80px]">
       <div className="max-w-[920px] mx-auto">
         <div data-reveal className="font-mono text-[13px] tracking-[.24em] uppercase text-[color-mix(in_srgb,var(--accent),#fff_12%)]">
-          // Career timeline
+          // Experience
         </div>
         <h2 data-reveal className="font-display font-bold text-[clamp(34px,5vw,60px)] tracking-[-.025em] mt-[12px] mb-[6px] text-[#f4f9f6]">
-          Work Experience.
+          Where I've shipped.
         </h2>
         <p data-reveal className="text-[#8ea097] text-[15px] m-0 mb-[46px]">
-          Most recent first.
+          Open source, client and team work — most recent first.
         </p>
         
         {!loading && <SectionNotice message={error} />}

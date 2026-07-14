@@ -9,10 +9,10 @@ export function ProjectsSection({ projects, loading = false, error = null }) {
           // Selected work
         </div>
         <h2 data-reveal className="font-display font-bold text-[clamp(34px,5vw,60px)] tracking-[-.025em] text-[#f4f9f6]">
-          Projects.
+          More builds.
         </h2>
         <p data-reveal className="max-w-[620px] text-[16px] leading-[1.75] text-[#9fb0a7] mt-[16px] mb-[46px]">
-          Real-world builds that show how I solve problems end to end — from database design and APIs to real-time features and load-tested reliability.
+          Production-grade builds that show how I solve problems end to end — from database design and APIs to real-time features and load-tested reliability.
         </p>
         
         {!loading && <SectionNotice message={error} />}
